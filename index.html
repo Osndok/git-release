@@ -1,0 +1,109 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+
+<html>
+<head>
+	<title>Versioning software releases with git</title>
+	<link rel=stylesheet type="text/css" href="style.css">
+</head>
+
+<body bottommargin="0" leftmargin="0" rightmargin="0" topmargin="0" background="img/background.jpg">
+
+<table height="123" width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr valign="top">
+<!----- insert logo below ------------------------------------------>
+<td><img src="img/logo.jpg" width="587" height="123" border="0" alt=""></td>
+<!------------------------------------------------------------------>
+<td width="100%" background="img/topbg.jpg">&nbsp;</td>
+</tr>
+</table>
+
+<table height="40" width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr valign="top">
+<td width="100%" background="img/topbar.jpg">&nbsp;</td>
+</tr>
+</table>
+
+<table width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr valign="top">
+
+<td width="201"><BR>
+<!----- menu, insert links below ------------------------------------------>
+<img src="img/menubar.jpg" width="201" height="11" border="0" alt=""><BR>
+&nbsp;&nbsp;&raquo;&nbsp;<a href="index.html">home</a><BR>
+<img src="img/menubar.jpg" width="201" height="11" border="0" alt=""><BR>
+&nbsp;&nbsp;&raquo;&nbsp;<a href="release-0.5.sh">view the script</a><BR>
+<img src="img/menubar.jpg" width="201" height="11" border="0" alt=""><BR>
+&nbsp;&nbsp;&raquo;&nbsp;<a href="http://www.git-scm.org">git home page</a><BR>
+<img src="img/menubar.jpg" width="201" height="11" border="0" alt=""><BR>
+&nbsp;&nbsp;&raquo;&nbsp;<a href="mailto:git@osndok.com">email author</a><BR>
+<img src="img/menubar.jpg" width="201" height="11" border="0" alt=""><BR>
+<!-------------------------------------------------------------------------->
+</td>
+
+<td width="100%">
+	<table width="100%" cellpadding="10" cellspacing="0" border="0">
+		<tr valign="top">
+			<td>
+<!----- content, insert text and content below ------------------------------------------>
+<h2>Simple version-enumeration system with git</h2>
+<p align="justify">
+If you like how git "does all the work for you" concerning merging, you might like how this
+simple script will "do all the work for you" concerning managing version numbers.
+</p>
+<p align="justify">
+Caution: this is early development, use at your own risk. Send suggested patches to <a href="mailto:git@osndok.com">this address</a>.
+</p>
+<p>
+Click to view, right-click to save <a href="release-0.5.sh">release script</a> (Version 0.5 / 2009-07-15)
+</p>
+<p/>
+<h3>How it works</h3>
+<p>
+This script is an **easy** way to tag & branch releases on a remote
+git repositiory that follows the mainline-versioning
+method described in the Perforce
+<a href="http://www.perforce.com/perforce/papers/bestpractices.html">High-level Best Practices
+in Software Configuration Management</a> document.
+
+Specifically, with a single command any user with the ability to perform a
+"git-push" to the blessed "release server" can make a
+new release (by either a branch or tag). Many advanced git users
+may find this script totally unnecessary.</p>
+<p>
+It runs with bash & git. Please don't laugh at my shell-scripting abilities, instead <a href="mailto:git@osndok.com">send improvements</a>.
+</p>
+
+<table class="image">
+<caption align="bottom"><p>
+Example of what happens by simply running "./release.sh" when at certain spots of
+a local repo that tracks the version server. Automatically generating the appropriate
+branches, tags and release numbers.
+</p></caption>
+<tr><td><img src="img/example.gif" width="90%"/></tr></td>
+</table>
+
+<p algin="justify">
+One can see how this might encourage single version branches (as below from the
+aforementioned <a href="http://www.perforce.com/perforce/papers/bestpractices.html">Perforce document</a>).
+</p>
+<center>
+<img src="img/perforce-scm8diag1.gif"/>
+</center>
+<!--------------------------------------------------------------------------------------->
+
+<BR><BR><BR><BR><BR><BR><BR>
+<BR><BR><BR><BR><BR><BR><BR>
+<p align="center">
+&copy; Copyright Robert Hailey 2009, All Rights Reserved<BR>
+<a href="http://www.steves-templates.com" title="Steves free web templates" class="style2">Steve's free web templates</a></p>
+			</td>
+		</tr>
+	</table>
+</td>
+
+</tr>
+</table>
+
+</body>
+</html>
+
