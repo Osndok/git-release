@@ -170,7 +170,7 @@ if [ "$DO_BRANCH" == "true" ]; then
   git add $version_file
   git commit -m "post-branch '$NEW_BRANCH_NAME'" $version_file
   #must push current branch to detect potential conflict; TODO: maybe support ex-post-facto branching from release-tag points?
-  git push $REMOTE HEAD:$MERGE
+  git push $REMOTE $BRANCH:$MERGE
 
 # (3) - make the new remote branch, starting from where we *WERE*
   #bug?: being paranoid about potentially being confused and overwriting a pre-existing remote branch name, let's check first...
