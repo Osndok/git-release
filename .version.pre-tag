@@ -1,0 +1,5 @@
+
+# automatically updates the version number in the release script...
+
+sed -i.bak 's/^SCRIPT_VERSION=.*/SCRIPT_VERSION="'${NEXT_VERSION}/ release.sh
+rm -f release.sh.bak
