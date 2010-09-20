@@ -21,6 +21,7 @@ SCRIPT_VERSION="1.0"
 #          \- no-push option for testing changes before commitment
 #          \- machine-readable script version
 #          \- hooks for pre & post versioning
+#          \- one-push per ref (to aid in server-side processing)
 #   0.9   - add these change log entries, dont require branch naming convention
 #   0.8   - fix version-branching when deferred branch updates are enabled
 #   0.7   - support deferred branch updates by ignoring certain "failures"
@@ -193,46 +194,18 @@ if [ "$DO_BRANCH" == "true" ]; then
   echo $NEXT_VERSION > $version_file
   git add $version_file
   git commit -m "$NEW_BRANCH_NAME branched off" $version_file
-  #must push current branch to detect potential conflict; TODO: maybe support ex-post-facto branching from release-tag points?
-  if [ -n "$DO_PUSH" ] && ! git push $REMOTE $BRANCH:$MERGE > $TEMP 2>&1 ; then
-	if egrep -i '(later|defer)' $TEMP ; then
-	  echo "commit defered, continuing"
-	else
-	  echo "commit rejected"
-	  tail  $TEMP
-	  rm -f $TEMP
-	  exit 1
-	fi
-  fi
 
 # (3) - make the new remote branch, starting from where we *WERE*
   #bug?: being paranoid about potentially being confused and overwriting a pre-existing remote branch name, let's check first...
   git branch -r | grep $NEW_BRANCH_NAME && fatal "branch named '$NEW_BRANCH_NAME' already in remote repo?!"
 
-  #start it out where we left off (the branch point)
-  if [ -n "$DO_PUSH" ] || ! git push $REMOTE release-attempt:refs/heads/$NEW_BRANCH_NAME > $TEMP 2>&1 ; then
-    if [ -n "$DO_PUSH" ] ; then
-	  echo "not pushing branch to remote server..."
-    elif egrep -i '(later|defer)' $TEMP ; then
-	  echo "commit defered, continuing"
-	else
-	  echo "commit rejected"
-	  tail  $TEMP
-  	  rm -f $TEMP
-	  exit 1
-	fi
-	# we cannot use the remote branch, as it is undergoing testing; will be independant for the moment
+  # without pushing the new branch to the server (yet), make it start out where we left off
+  # by manually setting it up to track the remote (but as-of-yet non-existant) branch at
+  # the former location (release-attempt: temp. branch created earlier).
 	git checkout -b $NEW_BRANCH_NAME release-attempt
 	echo "WARN: work-around setup for $NEW_BRANCH_NAME remote-tracking (not yet accepted on server)!"
 	git config --add "branch.$NEW_BRANCH_NAME.remote" "$REMOTE"
 	git config --add "branch.$NEW_BRANCH_NAME.merge"  "refs/heads/$NEW_BRANCH_NAME"
-  else
-  
-  #make a local branch of the same name which tracks this newly-created remote branch
-  #simultaneously switches to that new branch (NB: might still be merging uncommitted changes)
-  git checkout --track  -b $NEW_BRANCH_NAME $REMOTE/$NEW_BRANCH_NAME
-
-  fi
 
 # (3.5) - run any new-branched hook we might find
 	[ -x ".version.new-branch" ]   && . ./.version.pre-branch
@@ -240,9 +213,10 @@ if [ "$DO_BRANCH" == "true" ]; then
 
 # (4) - commit to this new branch a new version file indicating a pre-release (ends in a period)
   echo ${VERSION}. > "$version_file"
-  #push this commit to...
   git add $version_file
   git commit -m "v: pre-${release_prefix}${VERSION}.0" $version_file
+
+# (5) - push the new branch to the server, along with the just-branched commit
   if [ -n "$DO_PUSH" ] && ! git push $REMOTE $NEW_BRANCH_NAME > $TEMP 2>&1 ; then
 	if egrep -i '(later|defer)' $TEMP ; then
 	  echo "commit defered, continuing"
@@ -254,10 +228,23 @@ if [ "$DO_BRANCH" == "true" ]; then
 	fi
   fi
 
-# (5) - delete the release-attempt branch, as we have successfully made a release branch
+# (6) - now we have a reasonable degree of certainity that the branch was accepted, push the mainline commit
+#       we made earlier at step (2), which advances the version number on the "mainline" (or sub-branch)
+	if [ -n "$DO_PUSH" ] && ! git push $REMOTE $BRANCH:$MERGE > $TEMP 2>&1 ; then
+		if egrep -i '(later|defer)' $TEMP ; then
+			echo "commit defered, continuing"
+		else
+			echo "mainline commit rejected" 1>&2
+			tail  $TEMP
+			rm -f $TEMP
+			exit 1
+		fi
+	fi
+
+# (7) - delete the release-attempt branch, as we have successfully made a release branch
   git branch -d release-attempt
 
-# (6) - run any post-version hook we might find
+# (8) - run any post-version hook we might find
 	[ -x ".version.post-branch" ]   && . ./.version.post-branch
 	[ -x "version/post-branch.sh" ] && . ./version/post-branch.sh
 
