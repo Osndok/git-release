@@ -1,5 +1,8 @@
 
 # automatically updates the version number in the release script...
 
-sed -i.bak 's/^SCRIPT_VERSION=.*/SCRIPT_VERSION="'${NEXT_VERSION}/ release.sh
+sed -i.bak 's/^SCRIPT_VERSION=.*/SCRIPT_VERSION="'${NEXT_VERSION}'"/' release.sh
 rm -f release.sh.bak
+
+# If you want a file updated with the version increment, you must commit it.
+git commit -m'v: pre-tag' release.sh
