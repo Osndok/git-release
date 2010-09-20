@@ -13,7 +13,7 @@
 # new release (by either a branch or tag). Many advanced git users
 # may find this script totally unnecessary.
 #
-SCRIPT_VERSION="1.0"
+SCRIPT_VERSION="1.0.0"
 # For updates or examples please visit: http://www.osndok.com/git-release/
 #
 # CHANGELOG:
