@@ -13,7 +13,7 @@
 # new release (by either a branch or tag). Many advanced git users
 # may find this script totally unnecessary.
 #
-# The version of this script is "0.7-autoport"
+# The version of this script is "0.8-autoport"
 # For updates or examples please visit: http://www.osndok.com/git-release/
 #
 # BUGS:
@@ -97,7 +97,7 @@ grep -q refs/heads/ $head || fatal "not in a local branch?"
 BRANCH=`cat $head | cut -f3- -d/`
 echo "BRANCH=$BRANCH"
 
-REMOTE=`git config --get branch.$BRANCH.remote`
+REMOTE=`git config --get branch.$BRANCH.remote` || fatal "not on a remote-tracking branch"
 MERGE=`git config --get branch.$BRANCH.merge`
 REMOTE_URL=`git config --get remote.$REMOTE.url`
 
@@ -200,11 +200,18 @@ if [ "$DO_BRANCH" == "true" ]; then
   	  rm -f $TEMP
 	  exit 1
 	fi
-  fi
-
+	# we cannot use the remote branch, as it is undergoing testing; will be independant for the moment
+	git checkout -b $NEW_BRANCH_NAME release-attempt
+	echo "WARN: work-around setup for $NEW_BRANCH_NAME remote-tracking (not yet accepted on server)!"
+	git config --add "branch.$NEW_BRANCH_NAME.remote" "$REMOTE"
+	git config --add "branch.$NEW_BRANCH_NAME.merge"  "refs/heads/$NEW_BRANCH_NAME"
+  else
+  
   #make a local branch of the same name which tracks this newly-created remote branch
   #simultaneously switches to that new branch (NB: might still be merging uncommitted changes)
   git checkout --track  -b $NEW_BRANCH_NAME $REMOTE/$NEW_BRANCH_NAME
+  
+  fi
 
 # (4) - commit to this new branch a new version file indicating a pre-release (ends in a period)
   echo ${VERSION}. > "$version_file"
