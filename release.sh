@@ -20,6 +20,7 @@ SCRIPT_VERSION="1.0"
 #   1.0   - always support *BOTH* the branch and the tag options
 #          \- no-push option for testing changes before commitment
 #          \- machine-readable script version
+#          \- hooks for pre & post versioning
 #   0.9   - add these change log entries, dont require branch naming convention
 #   0.8   - fix version-branching when deferred branch updates are enabled
 #   0.7   - support deferred branch updates by ignoring certain "failures"
@@ -181,6 +182,10 @@ if [ "$DO_BRANCH" == "true" ]; then
 
   set -x
 
+# (0) - run any pre-version hook we might find
+	[ -x ".version.pre-branch" ]   && . ./.version.pre-branch
+	[ -x "version/pre-branch.sh" ] && . ./version/pre-branch.sh
+
 # (1) - make a local branch to remember where the branches are forking (will balk at a failed/aborted release-attempt)
   git branch release-attempt
 
@@ -226,7 +231,7 @@ if [ "$DO_BRANCH" == "true" ]; then
   #make a local branch of the same name which tracks this newly-created remote branch
   #simultaneously switches to that new branch (NB: might still be merging uncommitted changes)
   git checkout --track  -b $NEW_BRANCH_NAME $REMOTE/$NEW_BRANCH_NAME
-  
+
   fi
 
 # (4) - commit to this new branch a new version file indicating a pre-release (ends in a period)
@@ -248,6 +253,10 @@ if [ "$DO_BRANCH" == "true" ]; then
 # (5) - delete the release-attempt branch, as we have successfully made a release branch
   git branch -d release-attempt
 
+# (6) - run any post-version hook we might find
+	[ -x ".version.post-branch" ]   && . ./.version.post-branch
+	[ -x "version/post-branch.sh" ] && . ./version/post-branch.sh
+
   date
   echo "Success, NOW ON BRANCH $NEW_BRANCH_NAME"
   rm -f $TEMP
@@ -258,6 +267,10 @@ else
 
   #easy... what follows the string "version-"; modify if not using version-* pattern (e.g. "v*" @ kernel.org)
   BRANCH_VERSION=`echo $REMOTE_BRANCH | cut -f2 -d-`
+
+# (0) - run any pre-version hook we might find
+	[ -x ".version.pre-tag" ]   && . ./.version.pre-tag
+	[ -x "version/pre-tag.sh" ] && . ./version/pre-tag.sh
 
   echo $NEXT_VERSION > "$version_file"
   NAME=${release_prefix}${NEXT_VERSION}
@@ -287,6 +300,10 @@ else
 	  exit 1
 	fi
   fi
+
+# (3) - run any post-version hook we might find
+	[ -x ".version.post-tag" ]   && . ./.version.post-tag
+	[ -x "version/post-tag.sh" ] && . ./version/post-tag.sh
 
   echo "Success, version $NEXT_VERSION tagged"
   rm -f $TEMP
