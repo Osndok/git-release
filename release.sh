@@ -234,6 +234,10 @@ if [ "$DO_BRANCH" == "true" ]; then
 
   fi
 
+# (3.5) - run any new-branched hook we might find
+	[ -x ".version.new-branch" ]   && . ./.version.pre-branch
+	[ -x "version/new-branch.sh" ] && . ./version/pre-branch.sh
+
 # (4) - commit to this new branch a new version file indicating a pre-release (ends in a period)
   echo ${VERSION}. > "$version_file"
   #push this commit to...
