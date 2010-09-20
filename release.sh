@@ -17,6 +17,7 @@
 # For updates or examples please visit: http://www.osndok.com/git-release/
 #
 # CHANGELOG:
+#   0.10  - always support *BOTH* the branch and the tag options
 #   0.9   - add these change log entries, dont require branch naming convention
 #   0.8   - fix version-branching when deferred branch updates are enabled
 #   0.7   - support deferred branch updates by ignoring certain "failures"
@@ -122,13 +123,15 @@ echo $REMOTE_URL | grep -q $release_machine || fatal "$BRANCH does not track to 
 REMOTE_BRANCH=`echo $MERGE | cut -f3- -d/`
 
 DO_BRANCH=""
-[ "$1" == "--branch" ] && DO_BRANCH=true
 
 # on master branch, or wanting to further-refine... must make a remote branch
 if echo $REMOTE_BRANCH | grep master ; then
-  echo 1>&2 "WARNING: mainline detected, doing release-branch"
+  echo 1>&2 "WARNING: mainline detected, you probably want a release-branch"
   DO_BRANCH=true
 fi
+
+[ "$1" == "--branch" ] && DO_BRANCH=true
+[ "$1" == "--tag" ] && DO_BRANCH=""
 
 # if no version file exists, make one that contains "1"
 [ -e "$version_file" ] || echo 1 > $version_file
