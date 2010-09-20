@@ -13,12 +13,13 @@
 # new release (by either a branch or tag). Many advanced git users
 # may find this script totally unnecessary.
 #
-# The version of this script is "0.9-autoport"
+SCRIPT_VERSION="1.0"
 # For updates or examples please visit: http://www.osndok.com/git-release/
 #
 # CHANGELOG:
 #   1.0   - always support *BOTH* the branch and the tag options
 #          \- no-push option for testing changes before commitment
+#          \- machine-readable script version
 #   0.9   - add these change log entries, dont require branch naming convention
 #   0.8   - fix version-branching when deferred branch updates are enabled
 #   0.7   - support deferred branch updates by ignoring certain "failures"
