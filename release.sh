@@ -11,10 +11,9 @@
 # Specifically, it grants any user with the ability to perform a
 # "git-push" to the blessed "release server" the ability to make a
 # new release (by either a branch or tag). Many advanced git users
-# may find this script totally unnecessary. Please don't laugh at my
-# shell-scripting abilities :)
+# may find this script totally unnecessary.
 #
-# The version of this script is "0.6"
+# The version of this script is "0.7-autoport"
 # For updates or examples please visit: http://www.osndok.com/git-release/
 #
 # BUGS:
@@ -152,6 +151,10 @@ echo "Branch: $BRANCH"
 echo "From version : $VERSION"
 echo "To   version : $NEXT_VERSION"
 
+git fetch
+
+TEMP=`mktemp /tmp/git-release.XXXXXXXX`
+
 if [ "$DO_BRANCH" == "true" ]; then
   echo "New branch at: ${VERSION}. -> ${VERSION}.0 (after release on that branch)"
 
@@ -162,22 +165,42 @@ if [ "$DO_BRANCH" == "true" ]; then
   #new branch name is easy, it's whatever the pre-branch version was
   NEW_BRANCH_NAME=${branch_prefix}${VERSION}
 
+  set -x
+
 # (1) - make a local branch to remember where the branches are forking (will balk at a failed/aborted release-attempt)
   git branch release-attempt
 
 # (2) - make a version-number-advancing-commit on the mainline (will automatically balk at two competing releases)
   echo $NEXT_VERSION > $version_file
   git add $version_file
-  git commit -m "post-branch '$NEW_BRANCH_NAME'" $version_file
+  git commit -m "$NEW_BRANCH_NAME branched off" $version_file
   #must push current branch to detect potential conflict; TODO: maybe support ex-post-facto branching from release-tag points?
-  git push $REMOTE $BRANCH:$MERGE
+  if ! git push $REMOTE $BRANCH:$MERGE > $TEMP 2>&1 ; then
+	if egrep -i '(later|defer)' $TEMP ; then
+	  echo "commit defered, continuing"
+	else
+	  echo "commit rejected"
+	  tail  $TEMP
+	  rm -f $TEMP
+	  exit 1
+	fi
+  fi
 
 # (3) - make the new remote branch, starting from where we *WERE*
   #bug?: being paranoid about potentially being confused and overwriting a pre-existing remote branch name, let's check first...
   git branch -r | grep $NEW_BRANCH_NAME && fatal "branch named '$NEW_BRANCH_NAME' already in remote repo?!"
 
   #start it out where we left off (the branch point)
-  git push $REMOTE release-attempt:refs/heads/$NEW_BRANCH_NAME
+  if ! git push $REMOTE release-attempt:refs/heads/$NEW_BRANCH_NAME > $TEMP 2>&1 ; then
+    if egrep -i '(later|defer)' $TEMP ; then
+	  echo "commit defered, continuing"
+	else
+	  echo "commit rejected"
+	  tail  $TEMP
+  	  rm -f $TEMP
+	  exit 1
+	fi
+  fi
 
   #make a local branch of the same name which tracks this newly-created remote branch
   #simultaneously switches to that new branch (NB: might still be merging uncommitted changes)
@@ -187,14 +210,24 @@ if [ "$DO_BRANCH" == "true" ]; then
   echo ${VERSION}. > "$version_file"
   #push this commit to...
   git add $version_file
-  git commit -m "pre-${release_prefix}${VERSION}.0" $version_file
-  git push $REMOTE $NEW_BRANCH_NAME
+  git commit -m "v: pre-${release_prefix}${VERSION}.0" $version_file
+  if ! git push $REMOTE $NEW_BRANCH_NAME > $TEMP 2>&1 ; then
+	if egrep -i '(later|defer)' $TEMP ; then
+	  echo "commit defered, continuing"
+	else
+	  echo "commit rejected"
+	  tail  $TEMP
+  	  rm -f $TEMP
+	  exit 1
+	fi
+  fi
 
 # (5) - delete the release-attempt branch, as we have successfully made a release branch
   git branch -d release-attempt
 
   date
   echo "Success, NOW ON BRANCH $NEW_BRANCH_NAME"
+  rm -f $TEMP
   exit 0
 else
   # we are NOT making a release-branch, but a release-commit... for this we advance the version_file by one and place/push a tag
@@ -212,9 +245,30 @@ else
   #NB: this commit is for the version file (other work-area/unmerged/unsaved changes are ignored)
   git commit -m "$NAME" "$version_file"
   git tag -m "$NAME" "$NAME"
-  git push $REMOTE $BRANCH
-  git push $REMOTE $NAME
+  if ! git push $REMOTE $BRANCH > $TEMP 2>&1 ; then
+	if egrep -i '(later|defer)' $TEMP ; then
+	  echo "commit defered, continuing"
+	else
+	  echo "commit rejected"
+	  tail  $TEMP
+  	  rm -f $TEMP
+	  exit 1
+	fi
+  fi
+  if ! git push $REMOTE $NAME > $TEMP 2>&1 ; then
+	if egrep -i '(later|defer)' $TEMP ; then
+	  echo "tag commit defered, continuing"
+	  #we will re-fetch the tag from the server later... if it is accepted
+	  git tag -d "$NAME"
+	else
+	  echo "tag commit rejected"
+	  tail  $TEMP
+	  rm -f $TEMP
+	  exit 1
+	fi
+  fi
 
   echo "Success, version $NEXT_VERSION tagged"
+  rm -f $TEMP
   exit 0
 fi
