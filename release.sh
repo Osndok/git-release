@@ -17,7 +17,8 @@
 # For updates or examples please visit: http://www.osndok.com/git-release/
 #
 # CHANGELOG:
-#   0.10  - always support *BOTH* the branch and the tag options
+#   1.0   - always support *BOTH* the branch and the tag options
+#          \- no-push option for testing changes before commitment
 #   0.9   - add these change log entries, dont require branch naming convention
 #   0.8   - fix version-branching when deferred branch updates are enabled
 #   0.7   - support deferred branch updates by ignoring certain "failures"
@@ -123,6 +124,7 @@ echo $REMOTE_URL | grep -q $release_machine || fatal "$BRANCH does not track to 
 REMOTE_BRANCH=`echo $MERGE | cut -f3- -d/`
 
 DO_BRANCH=""
+DO_PUSH="true"
 
 # on master branch, or wanting to further-refine... must make a remote branch
 if echo $REMOTE_BRANCH | grep master ; then
@@ -132,6 +134,8 @@ fi
 
 [ "$1" == "--branch" ] && DO_BRANCH=true
 [ "$1" == "--tag" ] && DO_BRANCH=""
+[ "$1" == "--no-push" ] && DO_PUSH=""
+[ "$2" == "--no-push" ] && DO_PUSH=""
 
 # if no version file exists, make one that contains "1"
 [ -e "$version_file" ] || echo 1 > $version_file
@@ -184,7 +188,7 @@ if [ "$DO_BRANCH" == "true" ]; then
   git add $version_file
   git commit -m "$NEW_BRANCH_NAME branched off" $version_file
   #must push current branch to detect potential conflict; TODO: maybe support ex-post-facto branching from release-tag points?
-  if ! git push $REMOTE $BRANCH:$MERGE > $TEMP 2>&1 ; then
+  if [ -n "$DO_PUSH" ] && ! git push $REMOTE $BRANCH:$MERGE > $TEMP 2>&1 ; then
 	if egrep -i '(later|defer)' $TEMP ; then
 	  echo "commit defered, continuing"
 	else
@@ -200,8 +204,10 @@ if [ "$DO_BRANCH" == "true" ]; then
   git branch -r | grep $NEW_BRANCH_NAME && fatal "branch named '$NEW_BRANCH_NAME' already in remote repo?!"
 
   #start it out where we left off (the branch point)
-  if ! git push $REMOTE release-attempt:refs/heads/$NEW_BRANCH_NAME > $TEMP 2>&1 ; then
-    if egrep -i '(later|defer)' $TEMP ; then
+  if [ -n "$DO_PUSH" ] || ! git push $REMOTE release-attempt:refs/heads/$NEW_BRANCH_NAME > $TEMP 2>&1 ; then
+    if [ -n "$DO_PUSH" ] ; then
+	  echo "not pushing branch to remote server..."
+    elif egrep -i '(later|defer)' $TEMP ; then
 	  echo "commit defered, continuing"
 	else
 	  echo "commit rejected"
@@ -227,7 +233,7 @@ if [ "$DO_BRANCH" == "true" ]; then
   #push this commit to...
   git add $version_file
   git commit -m "v: pre-${release_prefix}${VERSION}.0" $version_file
-  if ! git push $REMOTE $NEW_BRANCH_NAME > $TEMP 2>&1 ; then
+  if [ -n "$DO_PUSH" ] && ! git push $REMOTE $NEW_BRANCH_NAME > $TEMP 2>&1 ; then
 	if egrep -i '(later|defer)' $TEMP ; then
 	  echo "commit defered, continuing"
 	else
@@ -258,7 +264,7 @@ else
   #NB: this commit is for the version file (other work-area/unmerged/unsaved changes are ignored)
   git commit -m "$NAME" "$version_file"
   git tag -m "$NAME" "$NAME"
-  if ! git push $REMOTE $BRANCH > $TEMP 2>&1 ; then
+  if [ -n "$DO_PUSH" ] && ! git push $REMOTE $BRANCH > $TEMP 2>&1 ; then
 	if egrep -i '(later|defer)' $TEMP ; then
 	  echo "commit defered, continuing"
 	else
@@ -268,7 +274,7 @@ else
 	  exit 1
 	fi
   fi
-  if ! git push $REMOTE $NAME > $TEMP 2>&1 ; then
+  if [ -n "$DO_PUSH" ] && ! git push $REMOTE $NAME > $TEMP 2>&1 ; then
 	if egrep -i '(later|defer)' $TEMP ; then
 	  echo "tag commit defered, continuing"
 	  #we will re-fetch the tag from the server later... if it is accepted
