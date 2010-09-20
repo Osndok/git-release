@@ -17,7 +17,7 @@
 # For updates or examples please visit: http://www.osndok.com/git-release/
 #
 # CHANGELOG:
-#   0.9   - add these change log entries
+#   0.9   - add these change log entries, dont require branch naming convention
 #   0.8   - fix version-branching when deferred branch updates are enabled
 #   0.7   - support deferred branch updates by ignoring certain "failures"
 #   0.6   - fix incorrect branch name on push
@@ -248,9 +248,6 @@ else
 
   #easy... what follows the string "version-"; modify if not using version-* pattern (e.g. "v*" @ kernel.org)
   BRANCH_VERSION=`echo $REMOTE_BRANCH | cut -f2 -d-`
-
-  # e.g. if we are on the 3.x branch, make sure it starts with 3...
-  echo $VERSION | grep -q "^$BRANCH_VERSION" || fatal "$version_file: should start with '$BRANCH_VERSION', but says '$VERSION'"
 
   echo $NEXT_VERSION > "$version_file"
   NAME=${release_prefix}${NEXT_VERSION}
