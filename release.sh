@@ -181,11 +181,19 @@ if [ "$DO_BRANCH" == "true" ]; then
   #new branch name is easy, it's whatever the pre-branch version was
   NEW_BRANCH_NAME=${branch_prefix}${VERSION}
 
+  # @bug: need to check for non-version/uncommited changes (there are 'reset --hard' steps in recovery)
+
   set -x
 
 # (0) - run any pre-version hook we might find
 	[ -x ".version.pre-branch" ]   && . ./.version.pre-branch
 	[ -x "version/pre-branch.sh" ] && . ./version/pre-branch.sh
+
+# (0.5) check to see if our target branch is already created (someone else released this version)
+	if git branch -r | grep $NEW_BRANCH_NAME ; then
+		# TODO: might be nice to setup the remote version branches in the local repo.
+		fatal "branch named '$NEW_BRANCH_NAME' already in remote repo?!"
+	fi
 
 # (1) - make a local branch to remember where the branches are forking (will balk at a failed/aborted release-attempt)
   git branch release-attempt
@@ -196,14 +204,10 @@ if [ "$DO_BRANCH" == "true" ]; then
   git commit -m "$NEW_BRANCH_NAME branched off" $version_file
 
 # (3) - make the new remote branch, starting from where we *WERE*
-  #bug?: being paranoid about potentially being confused and overwriting a pre-existing remote branch name, let's check first...
-  git branch -r | grep $NEW_BRANCH_NAME && fatal "branch named '$NEW_BRANCH_NAME' already in remote repo?!"
-
   # without pushing the new branch to the server (yet), make it start out where we left off
   # by manually setting it up to track the remote (but as-of-yet non-existant) branch at
   # the former location (release-attempt: temp. branch created earlier).
 	git checkout -b $NEW_BRANCH_NAME release-attempt
-	echo "WARN: work-around setup for $NEW_BRANCH_NAME remote-tracking (not yet accepted on server)!"
 	git config --add "branch.$NEW_BRANCH_NAME.remote" "$REMOTE"
 	git config --add "branch.$NEW_BRANCH_NAME.merge"  "refs/heads/$NEW_BRANCH_NAME"
 
@@ -219,9 +223,12 @@ if [ "$DO_BRANCH" == "true" ]; then
 # (5) - push the new branch to the server, along with the just-branched commit
   if [ -n "$DO_PUSH" ] && ! git push $REMOTE $NEW_BRANCH_NAME > $TEMP 2>&1 ; then
 	if egrep -i '(later|defer)' $TEMP ; then
-	  echo "commit defered, continuing"
+	  echo "branch creation deferred, continuing"
 	else
-	  echo "commit rejected"
+	  echo "ERROR: branch creation request failed" 1>&2
+	  # Our first step (branch creation) failed. So to recover, reset the current branch to 'release-attempt' (and delete the same)
+	  git reset --hard release-attempt
+	  git branch -D release-attempt
 	  tail  $TEMP
   	  rm -f $TEMP
 	  exit 1
@@ -232,9 +239,17 @@ if [ "$DO_BRANCH" == "true" ]; then
 #       we made earlier at step (2), which advances the version number on the "mainline" (or sub-branch)
 	if [ -n "$DO_PUSH" ] && ! git push $REMOTE $BRANCH:$MERGE > $TEMP 2>&1 ; then
 		if egrep -i '(later|defer)' $TEMP ; then
-			echo "commit defered, continuing"
+			echo "mainline commit deferred, continuing"
 		else
-			echo "mainline commit rejected" 1>&2
+			echo "ERROR: branch creation succeeded, but mainline commit failed" 1>&2
+			# To recover, swap the placement of $BRANCH & release-attempt to be more logical
+			NEW_HASH=$(git rev-parse HEAD)
+			git reset --hard release-attempt
+			git checkout release-attempt
+			git reset --hard $NEW_HASH
+			# NB: 'release-attempt' will still be present (and block an immediate retry of the release)
+			echo "NB: the conflicting commits are on the (now-active) 'release-attempt' branch."
+			echo "    these commit(s) should *probably* be merged with the new remote master branch."
 			tail  $TEMP
 			rm -f $TEMP
 			exit 1
@@ -249,7 +264,9 @@ if [ "$DO_BRANCH" == "true" ]; then
 	[ -x "version/post-branch.sh" ] && . ./version/post-branch.sh
 
   date
-  echo "Success, NOW ON BRANCH $NEW_BRANCH_NAME"
+  echo "Success, NOW ON BRANCH $NEW_BRANCH_NAME."
+  echo " * release again to tag a specific version on this branch"
+  echo " * switch back to the former branch with 'git checkout $BRANCH'"
   rm -f $TEMP
   exit 0
 else
@@ -266,26 +283,36 @@ else
   echo $NEXT_VERSION > "$version_file"
   NAME=${release_prefix}${NEXT_VERSION}
 
+	OLD_HASH=$(git rev-parse HEAD)
+
   #NB: this commit is for the version file (other work-area/unmerged/unsaved changes are ignored)
   git commit -m "$NAME" "$version_file"
   git tag -m "$NAME" "$NAME"
   if [ -n "$DO_PUSH" ] && ! git push $REMOTE $BRANCH > $TEMP 2>&1 ; then
 	if egrep -i '(later|defer)' $TEMP ; then
-	  echo "commit defered, continuing"
+	  echo "$BRANCH commit deferred, continuing"
 	else
-	  echo "commit rejected"
+	  echo "$BRANCH commit was rejected, this probably means that your repo is not up-to-date with the server." 1>&2
+	  # 'rollback' the version comming & revert the .version file
+	  # *hopefully* this will not interfere with any dirty files
+	  git reset $OLD_HASH
+	  git checkout "$version_file"
 	  tail  $TEMP
   	  rm -f $TEMP
 	  exit 1
 	fi
   fi
+
+	# Now that we are reasonably sure that the in-branch commit was recorded, we'll push the same hash to the tag.
   if [ -n "$DO_PUSH" ] && ! git push $REMOTE $NAME > $TEMP 2>&1 ; then
 	if egrep -i '(later|defer)' $TEMP ; then
 	  echo "tag commit defered, continuing"
 	  #we will re-fetch the tag from the server later... if it is accepted
 	  git tag -d "$NAME"
 	else
-	  echo "tag commit rejected"
+		git fetch
+		echo "ERROR: server accepted branch-advancement, but rejected tag placement" 1>&2
+		echo "       there will likely be conflicting $NAME tags.";
 	  tail  $TEMP
 	  rm -f $TEMP
 	  exit 1
