@@ -90,10 +90,13 @@ SCRIPT_VERSION="1.2.0"
 head=.git/HEAD
 release_machine=release.osndok.com
 version_file=.version
+version_args=.version_args
+build_file=.build_number
 
 #changing these likely will neccesitate changing some of the re-parsing code below
 release_prefix=v
 branch_prefix="version-"
+build_tag_prefix="refs/tags/build/"
 
 function fatal() {
   echo 1>&2 "FATAL: $*"
@@ -126,19 +129,78 @@ echo $REMOTE_URL | grep -q $release_machine || fatal "$BRANCH does not track to 
 #branch_prefix change will require this to change
 REMOTE_BRANCH=`echo $MERGE | cut -f3- -d/`
 
-DO_BRANCH=""
+LAST_BUILD=0
+if [ -e $build_file ]; then
+	read LAST_BUILD < $build_file
+	AND_BUILD_FILE=$build_file
+else
+	AND_BUILD_FILE=""
+fi
+let NEXT_BUILD=1+$LAST_BUILD
+
+ARGS=""
+BUILD_ONLY=""
+DO_BRANCH="default"
 DO_PUSH="true"
 
-# on master branch, or wanting to further-refine... must make a remote branch
-if echo $REMOTE_BRANCH | grep -q master ; then
-	echo 1>&2 "INFO: mainline releases default to branch-creation"
-	DO_BRANCH=true
+for arg in $*
+do
+	case "$arg" in
+"--push")       DO_PUSH="true"
+    ;;
+"--no-push")    DO_PUSH=""
+    ;;
+"--branch")     DO_BRANCH="true"
+    ;;
+"--tag")        DO_BRANCH=""
+    ;;
+"--build-only") BUILD_ONLY="true"
+    ;;
+*) ARGS="$ARGS $arg"
+   ;;
+	esac
+done
+
+if [ -n "$ARGS" ]; then
+	echo "$ARGS" > $version_args
+	git add $version_args
+	AND_ARGS_FILE=$version_args
+elif [ -e $version_args ]; then
+	git rm -f $version_args || rm -fv $version_args
+	AND_ARGS_FILE=$version_args
+else
+	AND_ARGS_FILE=""
 fi
 
-[ "$1" == "--branch" ] && DO_BRANCH=true
-[ "$1" == "--tag" ] && DO_BRANCH=""
-[ "$1" == "--no-push" ] && DO_PUSH=""
-[ "$2" == "--no-push" ] && DO_PUSH=""
+if [ -n "$BUILD_ONLY" ]; then
+	if echo $REMOTE_BRANCH | grep -q master ; then
+		DO_BRANCH=""
+		echo "Tagging Build #$NEXT_BUILD"
+	else
+		echo "ERROR: build numbers are only for the master/mainline branch" 1>&2
+		git rm -f $build_file
+		exit 1
+	fi
+	echo $NEXT_BUILD > $build_file
+	git add $build_file
+else
+	if [ -e "$build_file" ]; then
+		if echo $REMOTE_BRANCH | grep -q master ; then
+			echo $NEXT_BUILD > $build_file
+			git add $build_file
+		else
+			git rm -f $build_file
+		fi
+	fi
+
+# on master branch, or wanting to further-refine... must make a remote branch
+if [ "$DO_BRANCH" == "default" ]; then
+	if echo $REMOTE_BRANCH | grep -q master ; then
+		DO_BRANCH="true"
+	else
+		DO_BRANCH=""
+	fi
+fi
 
 # if no version file exists, make one that contains "1"
 [ -e "$version_file" ] || echo 1 > $version_file
@@ -166,6 +228,9 @@ fi
 echo "Branch: $BRANCH"
 echo "From version : $VERSION"
 echo "To   version : $NEXT_VERSION"
+
+# endif - build-only
+fi
 
 git fetch
 
@@ -199,7 +264,7 @@ if [ "$DO_BRANCH" == "true" ]; then
 
 # (2) - make a version-number-advancing-commit on the mainline (will automatically balk at two competing releases)
   echo $NEXT_VERSION > $version_file
-  git add $version_file
+  git add $version_file $AND_BUILD_FILE $AND_ARGS_FILE
   git commit -m "$NEW_BRANCH_NAME branched off" $version_file
 
 # (3) - make the new remote branch, starting from where we *WERE*
@@ -276,17 +341,28 @@ else
   #easy... what follows the string "version-"; modify if not using version-* pattern (e.g. "v*" @ kernel.org)
   BRANCH_VERSION=`echo $REMOTE_BRANCH | cut -f2 -d-`
 
-# (0) - run any pre-version hook we might find
-	[ -x ".version.pre-tag" ]   && . ./.version.pre-tag
-	[ -x "version/pre-tag.sh" ] && . ./version/pre-tag.sh
+	if [ -n "$BUILD_ONLY" ]; then
+		SHORT="b$NEXT_BUILD"
+		MSG="v: $SHORT"
+		NAME="build/$NEXT_BUILD"
+		AND_VERSION_FILE=""
+	else
+		AND_VERSION_FILE="$version_file"
 
-  echo $NEXT_VERSION > "$version_file"
-  NAME=${release_prefix}${NEXT_VERSION}
+		# (0) - run any pre-version hook we might find
+		[ -x ".version.pre-tag" ]   && . ./.version.pre-tag
+		[ -x "version/pre-tag.sh" ] && . ./version/pre-tag.sh
+
+		echo $NEXT_VERSION > "$version_file"
+		NAME=${release_prefix}${NEXT_VERSION}
+		MSG=$NAME
+		SHORT=$NAME
+	fi
 
 	OLD_HASH=$(git rev-parse HEAD)
 
   #NB: this commit is for the version file (other work-area/unmerged/unsaved changes are ignored)
-  git commit -m "$NAME" "$version_file"
+  git commit -m "$MSG" $AND_VERSION_FILE $AND_BUILD_FILE $AND_ARGS_FILE
   git tag -m "$NAME" "$NAME"
   if [ -n "$DO_PUSH" ] && ! git push $REMOTE $BRANCH > $TEMP 2>&1 ; then
 	if egrep -iq '(later|defer)' $TEMP ; then
@@ -319,12 +395,14 @@ else
 	fi
   fi
 
+	if [ -z "$BUILD_ONLY" ]; then
 # (3) - run any post-version hook we might find
 	[ -x ".version.post-tag" ]   && . ./.version.post-tag
 	[ -x "version/post-tag.sh" ] && . ./version/post-tag.sh
+	fi
 
 	echo
-  echo "Success, version $NEXT_VERSION tagged"
+	echo "Success, $NAME tagged"
   rm -f $TEMP
   exit 0
 fi
