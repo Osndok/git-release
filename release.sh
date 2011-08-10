@@ -106,7 +106,7 @@ set -e
 grep -q refs/heads/ $head || fatal "not in a local branch?"
 
 BRANCH=`cat $head | cut -f3- -d/`
-echo "BRANCH=$BRANCH"
+#echo "BRANCH=$BRANCH"   # e.g. master / version-2.1
 
 REMOTE=`git config --get branch.$BRANCH.remote` || fatal "not on a remote-tracking branch"
 MERGE=`git config --get branch.$BRANCH.merge`
@@ -114,9 +114,9 @@ REMOTE_URL=`git config --get remote.$REMOTE.url`
 
 [ -z "$REMOTE" ] && fatal "not on a remote-tracking branch."
 
-echo "REMOTE=$REMOTE"
-echo "MERGE=$MERGE"
-echo "REMOTE_URL=$REMOTE_URL"
+#echo "REMOTE=$REMOTE"         # e.g. 'origin'
+#echo "MERGE=$MERGE"           # or the remote side, 'refs/heads/master', 'refs/heads/version-2', 'refs/heads/version/2.1'
+#echo "REMOTE_URL=$REMOTE_URL" # the remote machine name
 
 echo $REMOTE_URL | grep -q $release_machine || fatal "$BRANCH does not track to $release_machine"
 
@@ -130,9 +130,9 @@ DO_BRANCH=""
 DO_PUSH="true"
 
 # on master branch, or wanting to further-refine... must make a remote branch
-if echo $REMOTE_BRANCH | grep master ; then
-  echo 1>&2 "WARNING: mainline detected, you probably want a release-branch"
-  DO_BRANCH=true
+if echo $REMOTE_BRANCH | grep -q master ; then
+	echo 1>&2 "INFO: mainline releases default to branch-creation"
+	DO_BRANCH=true
 fi
 
 [ "$1" == "--branch" ] && DO_BRANCH=true
@@ -172,7 +172,7 @@ git fetch
 TEMP=`mktemp /tmp/git-release.XXXXXXXX`
 
 if [ "$DO_BRANCH" == "true" ]; then
-  echo "New branch at: ${VERSION}. -> ${VERSION}.0 (after release on that branch)"
+  echo "New branch at: ${VERSION}. -> ${VERSION}.0 (after release)"
 
   # if we are trying to branch BEFORE the first release, they are not following the release method;
   # this would surely generate confusion
@@ -182,8 +182,7 @@ if [ "$DO_BRANCH" == "true" ]; then
   NEW_BRANCH_NAME=${branch_prefix}${VERSION}
 
   # @bug: need to check for non-version/uncommited changes (there are 'reset --hard' steps in recovery)
-
-  set -x
+  #set -x
 
 # (0) - run any pre-version hook we might find
 	[ -x ".version.pre-branch" ]   && . ./.version.pre-branch
@@ -222,8 +221,8 @@ if [ "$DO_BRANCH" == "true" ]; then
 
 # (5) - push the new branch to the server, along with the just-branched commit
   if [ -n "$DO_PUSH" ] && ! git push $REMOTE $NEW_BRANCH_NAME > $TEMP 2>&1 ; then
-	if egrep -i '(later|defer)' $TEMP ; then
-	  echo "branch creation deferred, continuing"
+	if egrep -iq '(later|defer)' $TEMP ; then
+		echo " $NEW_BRANCH_NAME branch creation deferred, continuing..."
 	else
 	  echo "ERROR: branch creation request failed" 1>&2
 	  # Our first step (branch creation) failed. So to recover, reset the current branch to 'release-attempt' (and delete the same)
@@ -238,8 +237,8 @@ if [ "$DO_BRANCH" == "true" ]; then
 # (6) - now we have a reasonable degree of certainity that the branch was accepted, push the mainline commit
 #       we made earlier at step (2), which advances the version number on the "mainline" (or sub-branch)
 	if [ -n "$DO_PUSH" ] && ! git push $REMOTE $BRANCH:$MERGE > $TEMP 2>&1 ; then
-		if egrep -i '(later|defer)' $TEMP ; then
-			echo "mainline commit deferred, continuing"
+		if egrep -iq '(later|defer)' $TEMP ; then
+			echo " $BRANCH commit deferred, continuing..."
 		else
 			echo "ERROR: branch creation succeeded, but mainline commit failed" 1>&2
 			# To recover, swap the placement of $BRANCH & release-attempt to be more logical
@@ -264,6 +263,7 @@ if [ "$DO_BRANCH" == "true" ]; then
 	[ -x "version/post-branch.sh" ] && . ./version/post-branch.sh
 
   date
+  echo
   echo "Success, NOW ON BRANCH $NEW_BRANCH_NAME."
   echo " * release again to tag a specific version on this branch"
   echo " * switch back to the former branch with 'git checkout $BRANCH'"
@@ -289,8 +289,8 @@ else
   git commit -m "$NAME" "$version_file"
   git tag -m "$NAME" "$NAME"
   if [ -n "$DO_PUSH" ] && ! git push $REMOTE $BRANCH > $TEMP 2>&1 ; then
-	if egrep -i '(later|defer)' $TEMP ; then
-	  echo "$BRANCH commit deferred, continuing"
+	if egrep -iq '(later|defer)' $TEMP ; then
+	  echo " $BRANCH commit deferred, continuing..."
 	else
 	  echo "$BRANCH commit was rejected, this probably means that your repo is not up-to-date with the server." 1>&2
 	  # 'rollback' the version comming & revert the .version file
@@ -305,8 +305,8 @@ else
 
 	# Now that we are reasonably sure that the in-branch commit was recorded, we'll push the same hash to the tag.
   if [ -n "$DO_PUSH" ] && ! git push $REMOTE $NAME > $TEMP 2>&1 ; then
-	if egrep -i '(later|defer)' $TEMP ; then
-	  echo "tag commit defered, continuing"
+	if egrep -iq '(later|defer)' $TEMP ; then
+	  echo " $NAME tag commit defered, continuing..."
 	  #we will re-fetch the tag from the server later... if it is accepted
 	  git tag -d "$NAME"
 	else
@@ -323,6 +323,7 @@ else
 	[ -x ".version.post-tag" ]   && . ./.version.post-tag
 	[ -x "version/post-tag.sh" ] && . ./version/post-tag.sh
 
+	echo
   echo "Success, version $NEXT_VERSION tagged"
   rm -f $TEMP
   exit 0
