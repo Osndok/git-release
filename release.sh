@@ -191,6 +191,7 @@ else
 		else
 			git rm -f $build_file
 		fi
+		AND_BUILD_FILE=$build_file
 	fi
 
 # on master branch, or wanting to further-refine... must make a remote branch
@@ -265,7 +266,7 @@ if [ "$DO_BRANCH" == "true" ]; then
 # (2) - make a version-number-advancing-commit on the mainline (will automatically balk at two competing releases)
   echo $NEXT_VERSION > $version_file
   git add $version_file $AND_BUILD_FILE $AND_ARGS_FILE
-  git commit -m "$NEW_BRANCH_NAME branched off" $version_file
+  git commit -m "$NEW_BRANCH_NAME branched off" $version_file $AND_BUILD_FILE
 
 # (3) - make the new remote branch, starting from where we *WERE*
   # without pushing the new branch to the server (yet), make it start out where we left off
@@ -279,10 +280,13 @@ if [ "$DO_BRANCH" == "true" ]; then
 	[ -x ".version.new-branch" ]   && . ./.version.pre-branch
 	[ -x "version/new-branch.sh" ] && . ./version/pre-branch.sh
 
+# (3.75) - remove the enumerated build numbers from the new branch
+	[ -e $build_file ] && git rm -f $build_file
+
 # (4) - commit to this new branch a new version file indicating a pre-release (ends in a period)
   echo ${VERSION}. > "$version_file"
-  git add $version_file
-  git commit -m "v: pre-${release_prefix}${VERSION}.0" $version_file
+  git add $version_file $AND_ARGS_FILE
+  git commit -m "v: pre-${release_prefix}${VERSION}.0" $version_file $AND_ARGS_FILE $AND_BUILD_FILE
 
 # (5) - push the new branch to the server, along with the just-branched commit
   if [ -n "$DO_PUSH" ] && ! git push $REMOTE $NEW_BRANCH_NAME > $TEMP 2>&1 ; then
