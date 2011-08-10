@@ -156,6 +156,15 @@ do
     ;;
 "--build-only") BUILD_ONLY="true"
     ;;
+"--build-needed")
+	if git show --name-only HEAD | egrep -q "($build_file|$version_file)" ; then
+		echo "FALSE"
+		exit 1
+	else
+		echo "TRUE"
+		exit 0
+	fi
+	;;
 *) ARGS="$ARGS $arg"
    ;;
 	esac
