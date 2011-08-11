@@ -251,7 +251,10 @@ if [ "$DO_BRANCH" == "true" ]; then
 
   # if we are trying to branch BEFORE the first release, they are not following the release method;
   # this would surely generate confusion
-  grep '\.$' $version_file && fatal "do not branch from a release branch before first release commit (commit ${VERSION}0 first!)"
+	if grep '\.$' $version_file ; then
+		git checkout "$version_file" $AND_BUILD_FILE $AND_ARGS_FILE
+		fatal "do not branch from a release branch before first release commit (commit ${VERSION}0 first!)"
+	fi
 
   #new branch name is easy, it's whatever the pre-branch version was
   NEW_BRANCH_NAME=${branch_prefix}${VERSION}
@@ -266,6 +269,7 @@ if [ "$DO_BRANCH" == "true" ]; then
 # (0.5) check to see if our target branch is already created (someone else released this version)
 	if git branch -r | grep $NEW_BRANCH_NAME ; then
 		# TODO: might be nice to setup the remote version branches in the local repo.
+		git checkout "$version_file" $AND_BUILD_FILE $AND_ARGS_FILE
 		fatal "branch named '$NEW_BRANCH_NAME' already in remote repo?!"
 	fi
 
