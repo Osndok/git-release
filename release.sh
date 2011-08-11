@@ -269,6 +269,9 @@ if [ "$DO_BRANCH" == "true" ]; then
 		fatal "branch named '$NEW_BRANCH_NAME' already in remote repo?!"
 	fi
 
+# (0.75) make a checkpoint that we can fall-back to (complete with working tree modifications)
+	git stash save
+
 # (1) - make a local branch to remember where the branches are forking (will balk at a failed/aborted release-attempt)
   git branch release-attempt
 
@@ -304,7 +307,7 @@ if [ "$DO_BRANCH" == "true" ]; then
 	else
 	  echo "ERROR: branch creation request failed" 1>&2
 	  # Our first step (branch creation) failed. So to recover, reset the current branch to 'release-attempt' (and delete the same)
-	  git reset --hard release-attempt
+	  git stash pop
 	  git branch -D release-attempt
 	  tail  $TEMP
   	  rm -f $TEMP
@@ -321,9 +324,10 @@ if [ "$DO_BRANCH" == "true" ]; then
 			echo "ERROR: branch creation succeeded, but mainline commit failed" 1>&2
 			# To recover, swap the placement of $BRANCH & release-attempt to be more logical
 			NEW_HASH=$(git rev-parse HEAD)
-			git reset --hard release-attempt
-			git checkout release-attempt
+			git checkout -f release-attempt
 			git reset --hard $NEW_HASH
+			git checkout $BRANCH
+			git stash pop
 			# NB: 'release-attempt' will still be present (and block an immediate retry of the release)
 			echo "NB: the conflicting commits are on the (now-active) 'release-attempt' branch."
 			echo "    these commit(s) should *probably* be merged with the new remote master branch."
@@ -334,7 +338,8 @@ if [ "$DO_BRANCH" == "true" ]; then
 	fi
 
 # (7) - delete the release-attempt branch, as we have successfully made a release branch
-  git branch -d release-attempt
+	git branch -d release-attempt
+	git stash drop
 
 # (8) - run any post-version hook we might find
 	[ -x ".version.post-branch" ]   && . ./.version.post-branch
@@ -384,8 +389,9 @@ else
 	  echo "$BRANCH commit was rejected, this probably means that your repo is not up-to-date with the server." 1>&2
 	  # 'rollback' the version comming & revert the .version file
 	  # *hopefully* this will not interfere with any dirty files
+	  # if it does, we'll need to use the 'stash' mechanism.
 	  git reset $OLD_HASH
-	  git checkout "$version_file"
+	  git checkout "$version_file" $AND_BUILD_FILE $AND_ARGS_FILE
 	  tail  $TEMP
   	  rm -f $TEMP
 	  exit 1
