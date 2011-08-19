@@ -93,6 +93,9 @@ version_file=.version
 version_args=.version_args
 build_file=.build_number
 
+# If 'true', then running ./release.sh on the master branch will generate a *tag* (not a branch)
+TAG_MAINLINE=false
+
 #changing these likely will neccesitate changing some of the re-parsing code below
 release_prefix=v
 branch_prefix="version-"
@@ -205,7 +208,7 @@ else
 
 # on master branch, or wanting to further-refine... must make a remote branch
 if [ "$DO_BRANCH" == "default" ]; then
-	if echo $REMOTE_BRANCH | grep -q master ; then
+	if [ "$TAG_MAINLINE" != "true" ] && echo $REMOTE_BRANCH | grep -q master ; then
 		DO_BRANCH="true"
 	else
 		DO_BRANCH=""
