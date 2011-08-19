@@ -371,18 +371,25 @@ else
 		MSG="v: $SHORT"
 		NAME="build/$NEXT_BUILD"
 		AND_VERSION_FILE=""
+		# (0.0) - run any pre-version hook we might find
+		[ -x ".version.pre-build" ]   && . ./.version.pre-build
+		[ -x "version/pre-build.sh" ] && . ./version/pre-build.sh
 	else
 		AND_VERSION_FILE="$version_file"
 
-		# (0) - run any pre-version hook we might find
-		[ -x ".version.pre-tag" ]   && . ./.version.pre-tag
-		[ -x "version/pre-tag.sh" ] && . ./version/pre-tag.sh
+		# (0.0) - run any pre-version hook we might find
+		[ -x ".version.pre-release" ]   && . ./.version.pre-release
+		[ -x "version/pre-release.sh" ] && . ./version/pre-release.sh
 
 		echo $NEXT_VERSION > "$version_file"
 		NAME=${release_prefix}${NEXT_VERSION}
 		MSG=$NAME
 		SHORT=$NAME
 	fi
+
+	# (0) - run any pre-tag hook we might find
+	[ -x ".version.pre-tag" ]   && . ./.version.pre-tag
+	[ -x "version/pre-tag.sh" ] && . ./version/pre-tag.sh
 
 	OLD_HASH=$(git rev-parse HEAD)
 
@@ -421,10 +428,18 @@ else
 	fi
   fi
 
-	if [ -z "$BUILD_ONLY" ]; then
-# (3) - run any post-version hook we might find
+	# (3) - run any post-version hook we might find
 	[ -x ".version.post-tag" ]   && . ./.version.post-tag
 	[ -x "version/post-tag.sh" ] && . ./version/post-tag.sh
+
+	if [ -n "$BUILD_ONLY" ]; then
+		# (3.5) - run any post-build-tag hook we might find
+		[ -x ".version.post-build" ]   && . ./.version.post-build
+		[ -x "version/post-build.sh" ] && . ./version/post-build.sh
+	else
+		# (3.5) - run any post-version-tag hook we might find
+		[ -x ".version.post-release" ]   && . ./.version.post-release
+		[ -x "version/post-release.sh" ] && . ./version/post-release.sh
 	fi
 
 	echo
