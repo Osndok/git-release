@@ -5,4 +5,5 @@ sed -i.bak 's/^SCRIPT_VERSION=.*/SCRIPT_VERSION="'${NEXT_VERSION}'"/' release.sh
 rm -f release.sh.bak
 
 # If you want a file updated with the version increment, you must commit it.
-git commit -m'v: pre-tag' release.sh
+#git commit -m'v: pre-tag' release.sh
+AND_VERSION_FILE="$AND_VERSION_FILE release.sh"
