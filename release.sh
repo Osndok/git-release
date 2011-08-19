@@ -144,19 +144,35 @@ let NEXT_BUILD=1+$LAST_BUILD
 ARGS=""
 BUILD_ONLY=""
 DO_BRANCH="default"
+DO_BRANCH2="false"
 DO_PUSH="true"
 
-for arg in $*
+for arg in "$@"
 do
 	case "$arg" in
 "--push")       DO_PUSH="true"
     ;;
 "--no-push")    DO_PUSH=""
     ;;
+# --branch2 is an alternative branch command, wherein the branch maintains the monotonic incrementation 
+#           formerly on the mainline (master:1.2.3 -> branch:1.2.4 & master: 1.3.0, 1.3.1, ...)
+"--branch2")    DO_BRANCH2="true"
+                DO_BRANCH="true"
+	;;
+# --branch  is the conventional branch command, where the branch receives sub-divided enumerations
+#           (master:1.2 -> branch:1.2.0, 1.2.1, 1.2.2 & master:1.3, 1.4, 1.5)
+"--branch1")    DO_BRANCH2="false"
+                DO_BRANCH="true"
+	;;
 "--branch")     DO_BRANCH="true"
     ;;
+
 "--tag")        DO_BRANCH=""
     ;;
+"--build2")
+	echo 1>&2 "Did you mean, '--branch2' ???"
+	exit 1
+	;;
 "--build-only") BUILD_ONLY="true"
     ;;
 "--build-needed")
@@ -222,9 +238,17 @@ VERSION=`cat "$version_file"`
 #iff there is no period in the present version number, treat it as a mainline (MAJOR) number (1,2,3,4)
 if echo $VERSION | grep -q '\.' ; then
   #treat it as a sub-version (e.g. 3.1.2)
+	if [ "$DO_BRANCH2" == "true" ]; then
+		# discard least significant digit & increment the next-to-least
+		SMALLEST=`echo $VERSION | rev | cut -f2 -d. | rev`
+		PREFIX=`echo $VERSION | rev | cut -f3- -d. | rev`
+		BRANCH_VERSION="$(echo $VERSION | rev | cut -f2- -d. | rev)"
+	else
   #just increment the last decimal value... whatever that is.
   SMALLEST=`echo $VERSION | rev | cut -f1 -d. | rev`
   PREFIX=`echo $VERSION | rev | cut -f2- -d. | rev`
+		BRANCH_VERSION="$VERSION"
+	fi
 
   #if it ends in a period, increment that trailing period into a zero (so I guess "2." -> "2.-1"?) ha ha...
   if [ -z "$SMALLEST" ]; then
@@ -232,17 +256,33 @@ if echo $VERSION | grep -q '\.' ; then
   else
     let SMALLEST=$SMALLEST+1
   fi
-  NEXT_VERSION=${PREFIX}.${SMALLEST}
+
+	if [ "$DO_BRANCH2" == "true" ]; then
+		# End with a period so that the next tag will not clobber our general incrementation.
+		if [ -z "$PREFIX" ]; then
+			NEXT_VERSION=${SMALLEST}.
+		else
+			NEXT_VERSION=${PREFIX}.${SMALLEST}.
+		fi
+	else
+		NEXT_VERSION=${PREFIX}.${SMALLEST}
+	fi
 else
   #no period... just increment the whole number
   let NEXT_VERSION=${VERSION}+1
+  BRANCH_VERSION="$VERSION"
 fi
 
 echo "Branch: $BRANCH"
 echo "From version : $VERSION"
 echo "To   version : $NEXT_VERSION"
 
-# endif - build-only
+if [ -n "$ARGS" ]; then
+	echo -e "\nExtra args: $ARGS"
+	sleep 3
+fi
+
+# endif - not build-only
 fi
 
 git fetch
@@ -250,7 +290,6 @@ git fetch
 TEMP=`mktemp /tmp/git-release.XXXXXXXX`
 
 if [ "$DO_BRANCH" == "true" ]; then
-  echo "New branch at: ${VERSION}. -> ${VERSION}.0 (after release)"
 
   # if we are trying to branch BEFORE the first release, they are not following the release method;
   # this would surely generate confusion
@@ -259,8 +298,8 @@ if [ "$DO_BRANCH" == "true" ]; then
 		fatal "do not branch from a release branch before first release commit (commit ${VERSION}0 first!)"
 	fi
 
-  #new branch name is easy, it's whatever the pre-branch version was
-  NEW_BRANCH_NAME=${branch_prefix}${VERSION}
+	NEW_BRANCH_NAME=${branch_prefix}${BRANCH_VERSION}
+	echo "New branch    : $NEW_BRANCH_NAME"
 
   # @bug: need to check for non-version/uncommited changes (there are 'reset --hard' steps in recovery)
   #set -x
@@ -302,10 +341,18 @@ if [ "$DO_BRANCH" == "true" ]; then
 # (3.75) - remove the enumerated build numbers from the new branch
 	[ -e $build_file ] && git rm -f $build_file
 
+	if [ "$DO_BRANCH2" == "true" ]; then
+		# (4) - only commit to this branch if there is something commit-worthy (removing build file)
+		#       otherwise the version number stays the same.
+		if [ -n "$AND_ARGS_FILE$AND_BUILD_FILE" ]; then
+			git commit -m "$NEW_BRANCH_NAME branch" $AND_ARGS_FILE $AND_BUILD_FILE
+		fi
+	else
 # (4) - commit to this new branch a new version file indicating a pre-release (ends in a period)
   echo ${VERSION}. > "$version_file"
   git add $version_file $AND_ARGS_FILE
   git commit -m "v: pre-${release_prefix}${VERSION}.0" $version_file $AND_ARGS_FILE $AND_BUILD_FILE
+	fi
 
 # (5) - push the new branch to the server, along with the just-branched commit
   if [ -n "$DO_PUSH" ] && ! git push $REMOTE $NEW_BRANCH_NAME > $TEMP 2>&1 ; then
@@ -352,11 +399,19 @@ if [ "$DO_BRANCH" == "true" ]; then
 	[ -x ".version.post-branch" ]   && . ./.version.post-branch
 	[ -x "version/post-branch.sh" ] && . ./version/post-branch.sh
 
+	if [ "$DO_BRANCH2" == "true" ]; then
+		git checkout $BRANCH
+		date
+		echo
+		echo "Success, $NEW_BRANCH_NAME branched off."
+		echo " * you can switch to the created branch using 'git checkout $NEW_BRANCH_NAME'"
+	else
   date
   echo
   echo "Success, NOW ON BRANCH $NEW_BRANCH_NAME."
   echo " * release again to tag a specific version on this branch"
   echo " * switch back to the former branch with 'git checkout $BRANCH'"
+	fi
   rm -f $TEMP
   exit 0
 else
