@@ -228,6 +228,7 @@ if [ "$DO_BRANCH" == "default" ]; then
 		DO_BRANCH="true"
 	else
 		DO_BRANCH=""
+		DO_BRANCH2="false"
 	fi
 fi
 
