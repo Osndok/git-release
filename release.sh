@@ -96,6 +96,9 @@ build_file=.build_number
 # If 'true', then running ./release.sh on the master branch will generate a *tag* (not a branch)
 TAG_MAINLINE=false
 
+# If 'true', then the alternate branching logic will be used by default.
+DO_BRANCH2=false
+
 #changing these likely will neccesitate changing some of the re-parsing code below
 release_prefix=v
 branch_prefix="version-"
@@ -144,7 +147,6 @@ let NEXT_BUILD=1+$LAST_BUILD
 ARGS=""
 BUILD_ONLY=""
 DO_BRANCH="default"
-DO_BRANCH2="false"
 DO_PUSH="true"
 
 for arg in "$@"
