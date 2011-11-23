@@ -16,17 +16,6 @@
 SCRIPT_VERSION="1.3.1"
 # For updates or examples please visit: http://www.osndok.com/git-release/
 #
-# CHANGELOG:
-#   1.0   - always support *BOTH* the branch and the tag options
-#          \- no-push option for testing changes before commitment
-#          \- machine-readable script version
-#          \- hooks for pre & post versioning
-#          \- one-push per ref (to aid in server-side processing)
-#   0.9   - add these change log entries, dont require branch naming convention
-#   0.8   - fix version-branching when deferred branch updates are enabled
-#   0.7   - support deferred branch updates by ignoring certain "failures"
-#   0.6   - fix incorrect branch name on push
-#
 # BUGS:
 #   May fail or produce undesirable results if run to branch from a
 #      commit point which is not a head.
@@ -195,11 +184,14 @@ if [ -n "$ARGS" ]; then
 	echo "$ARGS" > $version_args
 	git add $version_args
 	AND_ARGS_FILE=$version_args
+	MESSAGE_EXTRA=" $ARGS"
 elif [ -e $version_args ]; then
 	git rm -f $version_args || rm -fv $version_args
 	AND_ARGS_FILE=$version_args
+	MESSAGE_EXTRA=""
 else
 	AND_ARGS_FILE=""
+	MESSAGE_EXTRA=""
 fi
 
 if [ -n "$BUILD_ONLY" ]; then
@@ -348,7 +340,7 @@ if [ "$DO_BRANCH" == "true" ]; then
 		# (4) - only commit to this branch if there is something commit-worthy (removing build file)
 		#       otherwise the version number stays the same.
 		if [ -n "$AND_ARGS_FILE$AND_BUILD_FILE" ]; then
-			git commit -m "$NEW_BRANCH_NAME branch" $AND_ARGS_FILE $AND_BUILD_FILE
+			git commit -m "$NEW_BRANCH_NAME branch${MESSAGE_EXTRA}" $AND_ARGS_FILE $AND_BUILD_FILE
 		fi
 	else
 # (4) - commit to this new branch a new version file indicating a pre-release (ends in a period)
@@ -426,7 +418,7 @@ else
 
 	if [ -n "$BUILD_ONLY" ]; then
 		SHORT="b$NEXT_BUILD"
-		MSG="v: $SHORT"
+		MSG="v: $SHORT${MESSAGE_EXTRA}"
 		NAME="build/$NEXT_BUILD"
 		AND_VERSION_FILE=""
 		# (0.0) - run any pre-version hook we might find
@@ -441,7 +433,7 @@ else
 
 		echo $NEXT_VERSION > "$version_file"
 		NAME=${release_prefix}${NEXT_VERSION}
-		MSG=$NAME
+		MSG="${NAME}${MESSAGE_EXTRA}"
 		SHORT=$NAME
 	fi
 
