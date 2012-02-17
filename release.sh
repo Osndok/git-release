@@ -126,8 +126,12 @@ REMOTE_BRANCH=`echo $MERGE | cut -f3- -d/`
 
 LAST_BUILD=0
 if [ -e $build_file ]; then
-	read LAST_BUILD < $build_file
-	AND_BUILD_FILE=$build_file
+	if read LAST_BUILD < $build_file ; then
+		AND_BUILD_FILE=$build_file
+	else
+		echo 1>&2 "$build_file: unreadable (make sure it contains an end-of-line marker)"
+		exit 1
+	fi
 else
 	AND_BUILD_FILE=""
 fi
