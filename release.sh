@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright 2011, Robert Hailey <git@osndok.com>
+# Copyright 2015, Robert Hailey <git@osndok.com>
 #
 # This script is an "easy" self-contained tagging & branching release
 # system for git repositories that follow the mainline-versioning
