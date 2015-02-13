@@ -76,8 +76,7 @@ SCRIPT_VERSION="1.3.2"
 #
 #   Long live git!
 #
-head=.git/HEAD
-release_machine=release.osndok.com
+release_machine=
 version_file=.version
 version_args=.version_args
 build_file=.build_number
@@ -97,6 +96,8 @@ function fatal() {
   echo 1>&2 "FATAL: $*"
   exit 1
 }
+
+head=.git/HEAD
 
 #hereafter, stop on first error
 set -e
@@ -118,17 +119,20 @@ fi
 BRANCH=$( cat $head | cut -f3- -d/ )
 #echo "BRANCH=$BRANCH"   # e.g. master / version-2.1
 
-REMOTE=$(git config --get branch.$BRANCH.remote) || fatal "not on a remote-tracking branch"
-MERGE=$(git config --get branch.$BRANCH.merge)
-REMOTE_URL=$(git config --get remote.$REMOTE.url)
+REMOTE=$(git config --get branch.$BRANCH.remote)  || fatal "not on a remote-tracking branch"
+MERGE=$(git config --get branch.$BRANCH.merge)    || fatal "branch.$BRANCH.merge config item is not set"
+REMOTE_URL=$(git config --get remote.$REMOTE.url) || fatal "remote.$REMOTE.url config item is not set"
 
-[ -z "$REMOTE" ] && fatal "not on a remote-tracking branch."
+[ -z "$REMOTE" ] && fatal "not on a remote-tracking branch. 2"
+[ -z "$MERGE"  ] && fatal "unable to determine remote branch name"
 
 #echo "REMOTE=$REMOTE"         # e.g. 'origin'
 #echo "MERGE=$MERGE"           # or the remote side, 'refs/heads/master', 'refs/heads/version-2', 'refs/heads/version/2.1'
 #echo "REMOTE_URL=$REMOTE_URL" # the remote machine name
 
-echo $REMOTE_URL | grep -q $release_machine || fatal "$BRANCH does not track to $release_machine"
+if [ -n "$release_machine" ]; then
+	echo $REMOTE_URL | grep -q $release_machine || fatal "$BRANCH does not track to $release_machine"
+fi
 
 #mainline will look like: MERGE=refs/heads/master
 #version branch like:     MERGE=refs/heads/version-3
