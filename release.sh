@@ -125,9 +125,27 @@ else
 fi
 
 BRANCH=$( cat $head | cut -f3- -d/ )
-#echo "BRANCH=$BRANCH"   # e.g. master / version-2.1
+#echo "BRANCH=$BRANCH"   # e.g. master, version-2, version-2.1, version-2.1.3
 
-REMOTE=$(git config --get branch.$BRANCH.remote)  || fatal "please set 'branch.$BRANCH.remote', to guard against accidentally pushing the wrong branches"
+#
+# "--bless" adds entries like this into your config:
+#
+#[branch "master"]
+#        remote = origin
+#        merge = refs/heads/master
+#        rebase = true
+#
+# b/c these were formerly required of git, but no longer strictly needed,
+# and we require them for sanity checking.
+#
+if [ "$#" -eq "1" ] && [ "$1" == "--bless" ]; then
+	git config branch.$BRANCH.remote origin
+	git config branch.$BRANCH.merge  refs/heads/$BRANCH
+	git config branch.$BRANCH.rebase true
+	exit 0
+fi
+
+REMOTE=$(git config --get branch.$BRANCH.remote)  || fatal "please set 'branch.$BRANCH.remote', or run '--bless' to guard against accidentally pushing the wrong branches"
 MERGE=$(git config --get branch.$BRANCH.merge)    || fatal "branch.$BRANCH.merge config item is not set"
 REMOTE_URL=$(git config --get remote.$REMOTE.url) || fatal "remote.$REMOTE.url config item is not set"
 
