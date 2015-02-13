@@ -106,12 +106,12 @@ cd $(dirname $0)
 
 grep -q refs/heads/ $head || fatal "not in a local branch?"
 
-BRANCH=`cat $head | cut -f3- -d/`
+BRANCH=$( cat $head | cut -f3- -d/ )
 #echo "BRANCH=$BRANCH"   # e.g. master / version-2.1
 
-REMOTE=`git config --get branch.$BRANCH.remote` || fatal "not on a remote-tracking branch"
-MERGE=`git config --get branch.$BRANCH.merge`
-REMOTE_URL=`git config --get remote.$REMOTE.url`
+REMOTE=$(git config --get branch.$BRANCH.remote) || fatal "not on a remote-tracking branch"
+MERGE=$(git config --get branch.$BRANCH.merge)
+REMOTE_URL=$(git config --get remote.$REMOTE.url)
 
 [ -z "$REMOTE" ] && fatal "not on a remote-tracking branch."
 
@@ -125,7 +125,7 @@ echo $REMOTE_URL | grep -q $release_machine || fatal "$BRANCH does not track to 
 #version branch like:     MERGE=refs/heads/version-3
 
 #branch_prefix change will require this to change
-REMOTE_BRANCH=`echo $MERGE | cut -f3- -d/`
+REMOTE_BRANCH=$(echo $MERGE | cut -f3- -d/)
 
 LAST_BUILD=0
 if [ -e $build_file ]; then
@@ -235,20 +235,20 @@ fi
 
 # if no version file exists, make one that contains "1"
 [ -e "$version_file" ] || echo 1 > $version_file
-VERSION=`cat "$version_file"`
+VERSION=$(cat "$version_file")
 
 #iff there is no period in the present version number, treat it as a mainline (MAJOR) number (1,2,3,4)
 if echo $VERSION | grep -q '\.' ; then
-  #treat it as a sub-version (e.g. 3.1.2)
+	#treat it as a sub-version (e.g. 3.1.2)
 	if [ "$DO_BRANCH2" == "true" ]; then
 		# discard least significant digit & increment the next-to-least
-		SMALLEST=`echo $VERSION | rev | cut -f2 -d. | rev`
-		PREFIX=`echo $VERSION | rev | cut -f3- -d. | rev`
+		SMALLEST=$(echo $VERSION | rev | cut -f2 -d. | rev)
+		PREFIX=$(echo $VERSION | rev | cut -f3- -d. | rev)
 		BRANCH_VERSION="$(echo $VERSION | rev | cut -f2- -d. | rev)"
 	else
-  #just increment the last decimal value... whatever that is.
-  SMALLEST=`echo $VERSION | rev | cut -f1 -d. | rev`
-  PREFIX=`echo $VERSION | rev | cut -f2- -d. | rev`
+		#just increment the last decimal value... whatever that is.
+		SMALLEST=$(echo $VERSION | rev | cut -f1 -d. | rev)
+		PREFIX=$(echo $VERSION | rev | cut -f2- -d. | rev)
 		BRANCH_VERSION="$VERSION"
 	fi
 
@@ -289,7 +289,7 @@ fi
 
 git fetch
 
-TEMP=`mktemp /tmp/git-release.XXXXXXXX`
+TEMP=$(mktemp /tmp/git-release.XXXXXXXX)
 
 if [ "$DO_BRANCH" == "true" ]; then
 
@@ -421,7 +421,7 @@ else
   # first, some minor branch-name enforcement. Make sure the current branch-name jives with the version number...
 
   #easy... what follows the string "version-"; modify if not using version-* pattern (e.g. "v*" @ kernel.org)
-  BRANCH_VERSION=`echo $REMOTE_BRANCH | cut -f2 -d-`
+	BRANCH_VERSION=$(echo $REMOTE_BRANCH | cut -f2 -d-)
 
 	if [ -n "$BUILD_ONLY" ]; then
 		SHORT="b$NEXT_BUILD"
