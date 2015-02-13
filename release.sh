@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright 2015, Robert Hailey <git@osndok.com>
+# Copyright 2011, Robert Hailey <git@osndok.com>
 #
 # This script is an "easy" self-contained tagging & branching release
 # system for git repositories that follow the mainline-versioning
@@ -13,7 +13,7 @@
 # new release (by either a branch or tag). Many advanced git users
 # may find this script totally unnecessary.
 #
-SCRIPT_VERSION="1.3.4"
+SCRIPT_VERSION="1.3.2"
 # For updates or examples please visit: http://www.osndok.com/git-release/
 #
 # BUGS:
@@ -127,7 +127,7 @@ fi
 BRANCH=$( cat $head | cut -f3- -d/ )
 #echo "BRANCH=$BRANCH"   # e.g. master / version-2.1
 
-REMOTE=$(git config --get branch.$BRANCH.remote)  || fatal "not on a remote-tracking branch"
+REMOTE=$(git config --get branch.$BRANCH.remote)  || fatal "please set 'branch.$BRANCH.remote', to guard against accidentally pushing the wrong branches"
 MERGE=$(git config --get branch.$BRANCH.merge)    || fatal "branch.$BRANCH.merge config item is not set"
 REMOTE_URL=$(git config --get remote.$REMOTE.url) || fatal "remote.$REMOTE.url config item is not set"
 
