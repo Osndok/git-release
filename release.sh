@@ -215,7 +215,7 @@ do
 	BUILD_ONLY="true"
     ;;
 "--build-needed")
-	if git show --name-only HEAD | egrep -q "($build_file|$version_file)" ; then
+	if git show --name-only HEAD | egrep -q "^($build_file|$version_file)" ; then
 		echo "FALSE"
 		exit 1
 	else
