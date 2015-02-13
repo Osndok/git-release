@@ -104,7 +104,16 @@ set -e
 # Make sure we are at the project root... where this file should be...
 cd $(dirname $0)
 
-grep -q refs/heads/ $head || fatal "not in a local branch?"
+if [ -e .git ]; then
+	grep -q refs/heads/ $head || fatal "not in a local branch?"
+elif [ "$#" -eq "1" ] && [ "$1" == "--build-needed" ]; then
+	# The only supported operation without a git directory is '--build-needed', which always returns true (because we can't tell).
+	echo 2>&1 "warning: no .git directory, so --build-needed is always true"
+	echo "TRUE"
+	exit 0
+else
+	echo 2>&1 "fatal: no .git directory"
+fi
 
 BRANCH=$( cat $head | cut -f3- -d/ )
 #echo "BRANCH=$BRANCH"   # e.g. master / version-2.1
