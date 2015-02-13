@@ -82,10 +82,11 @@ version_args=.version_args
 build_file=.build_number
 
 # If 'true', then running ./release.sh on the master branch will generate a *tag* (not a branch)
-TAG_MAINLINE=false
+TAG_MAINLINE=true
 
-# If 'true', then the alternate branching logic will be used by default.
-DO_BRANCH2=false
+# If 'true', then the "features window" branching pattern will be used (branch and increment)
+# If 'false' then the "features welcome" pattern is used (branch, truncate, and increment)
+DO_BRANCH2=true
 
 #changing these likely will neccesitate changing some of the re-parsing code below
 release_prefix=v
