@@ -101,6 +101,9 @@ function fatal() {
 #hereafter, stop on first error
 set -e
 
+# Make sure we are at the project root... where this file should be...
+cd $(dirname $0)
+
 grep -q refs/heads/ $head || fatal "not in a local branch?"
 
 BRANCH=`cat $head | cut -f3- -d/`
