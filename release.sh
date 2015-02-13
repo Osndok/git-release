@@ -13,7 +13,7 @@
 # new release (by either a branch or tag). Many advanced git users
 # may find this script totally unnecessary.
 #
-SCRIPT_VERSION="1.3.3"
+SCRIPT_VERSION="1.3.2"
 # For updates or examples please visit: http://www.osndok.com/git-release/
 #
 # BUGS:
@@ -86,6 +86,13 @@ TAG_MAINLINE=true
 
 # If 'true', then the "features window" branching pattern will be used (branch and increment)
 # If 'false' then the "features welcome" pattern is used (branch, truncate, and increment)
+#
+# This can be overridden at runtime (for extra confusion, or experimentation):
+# --branch  is the conventional branch command, where the branch receives sub-divided enumerations
+#           (master:1.2 -> branch:1.2.0, 1.2.1, 1.2.2 & master:1.3, 1.4, 1.5)
+# --branch2 is an alternative branch command, wherein the branch maintains the monotonic incrementation 
+#           formerly on the mainline (master:1.2.3 -> branch:1.2.4 & master: 1.3.0, 1.3.1, ...)
+#
 DO_BRANCH2=true
 
 #changing these likely will neccesitate changing some of the re-parsing code below
@@ -185,7 +192,9 @@ do
 	echo 1>&2 "Did you mean, '--branch2' ???"
 	exit 1
 	;;
-"--build-only") BUILD_ONLY="true"
+"--build-only")
+	[ -e $build_file ] || fatal "this project does not seem to require or support monotonic build numbers"
+	BUILD_ONLY="true"
     ;;
 "--build-needed")
 	if git show --name-only HEAD | egrep -q "($build_file|$version_file)" ; then
