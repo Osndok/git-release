@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright 2011, Robert Hailey <git@osndok.com>
+# Copyright 2015, Robert Hailey <git@osndok.com>
 #
 # This script is an "easy" self-contained tagging & branching release
 # system for git repositories that follow the mainline-versioning
@@ -14,7 +14,8 @@
 # may find this script totally unnecessary.
 #
 SCRIPT_VERSION="1.3.6"
-# For updates or examples please visit: http://www.osndok.com/git-release/
+# For updates or examples please visit:
+#   https://github.com/Osndok/git-release
 #
 # BUGS:
 #   May fail or produce undesirable results if run to branch from a
